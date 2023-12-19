@@ -36,7 +36,7 @@ import bs58 from 'bs58';
 
 		if(false == timeControl.timestamp){
 			timeControl.price = priceObj.price
-			timeControl.timestamp = (timeNow + parseInt( process.env.TIME_LAPSE ) )
+			timeControl.timestamp = (timeNow + parseInt( process.env.RANGE_TIME ) )
 		}
 
 		console.log(
@@ -85,18 +85,40 @@ import bs58 from 'bs58';
 		}
 		console.log(`Done ${swapId}`)
 
-		await new Promise(resolve => setTimeout(resolve, 30000)); // sleep time
-
+		let priceDiff = parseInt( inputAmount ) * ( parseFloat ( process.env.PERCENT_TO_GAIN ) / 100 )
 		console.log(`Selling => ${outAmount} ${tokenBObj.symbol}`)
-		quoteResponse = await doQuote(tokenB, tokenA, quoteResponse.outAmount, tokenAObj);
-		if(false == quoteResponse) return;
+		let _timeNow = new Date().getTime();
+		let _timeOutOperation =  (_timeNow + parseInt( process.env.TIME_OUT_OPERATION ) )
+		while(true){
+			let _currenttimeNow = new Date().getTime();
+			if(_currenttimeNow > _timeOutOperation){
+				console.log(`>Operation timedOut exiting swap ${outTempAmount}  ${tokenAObj.symbol}`)
+				swapId = await exitSwap(tokenB, tokenA, quoteResponse.outAmount, tokenAObj);
+				timeControl.state = true;
+				console.log(`Done ${swapId}`)
+				return;
+			}
+			let quoteTempResponse = await doQuote(tokenB, tokenA, quoteResponse.outAmount, tokenAObj);
+			if(quoteTempResponse.hasOwnProperty('error')){console.log(quoteTempResponse, tokenBObj.address, tokenBObj.symbol ); continue;}
+			if(false == quoteTempResponse) continue;
 
-		if(quoteResponse.hasOwnProperty('error')){console.log(quoteResponse, tokenBObj.address, tokenBObj.symbol ); return;}
+			let outTempAmount = parseFloat( (quoteTempResponse.outAmount / (10** tokenAObj.decimals)).toFixed(5) )
+			if( quoteTempResponse.outAmount < ( parseInt( inputAmount  ) + priceDiff ) ){
+				console.log(`Not right time yet to sell ${outTempAmount}  ${tokenAObj.symbol}`)
+			}else{
+				quoteResponse = quoteTempResponse;
+				break;
+			}
+			//console.log(inputAmount, quoteTempResponse.outAmount)
+		}
 		let outAAmount = parseFloat( (quoteResponse.outAmount / (10** tokenAObj.decimals)).toFixed(5) )
 
 		console.log(`> Amount of ${outAmount} ${tokenBObj.symbol} Sold for: ${outAAmount} ${tokenAObj.symbol}`);
 		swapId = await doSwap(quoteResponse);
-		if(false == swapId) return;
+		if(false == swapId){
+			await new Promise(resolve => setTimeout(resolve, 10000)); // sleep time
+			swapId = await exitSwap(tokenB, tokenA, quoteResponse.outAmount, tokenAObj);
+		};
 		console.log(`Done ${swapId}`)
 
 		timeControl.state = true;
@@ -165,6 +187,20 @@ import bs58 from 'bs58';
 
 		return txid;
 
+	}
+	let exitSwap = async (tokenA, tokenB, inputAmount, tokenBObj) => {
+		let swapId;
+		while(true){
+			let quoteResponse = await doQuote(tokenA, tokenB, inputAmount, tokenBObj);
+			if(quoteResponse.hasOwnProperty('error')){console.log(quoteResponse, tokenBObj.address, tokenBObj.symbol ); continue;}
+			if(false == quoteResponse) continue;
+
+			swapId = await doSwap(quoteResponse);
+			if(false == swapId) continue;
+
+			break
+		}
+		return swapId;
 	}
 
 	// When using the subscription, make sure to close the websocket upon termination to finish the process gracefully.
