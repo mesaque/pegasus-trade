@@ -10,7 +10,11 @@
   "author": "Mesaque Silva",
   "license": "ISC",
   "dependencies": {
+    "@project-serum/anchor": "^0.26.0",
     "@pythnetwork/price-service-client": "^1.8.2",
+    "@solana/web3.js": "^1.87.6",
+    "bs58": "^5.0.0",
+    "cross-fetch": "^4.0.0",
     "dotenv": "^16.3.1"
   }
 }
