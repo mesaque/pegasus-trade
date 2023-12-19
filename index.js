@@ -78,12 +78,10 @@ import bs58 from 'bs58';
 
 		console.log(`> Amount of ${process.env.TRADE_AMOUNT} ${tokenAObj.symbol} bought: ${outAmount} ${tokenBObj.symbol}`);
 
-		let swapId = await doSwap(quoteResponse);
-		if(false == swapId){
-			timeControl.state = true;
-			return;
-		}
-		console.log(`Done ${swapId}`)
+		let swapObj = await exitSwap(tokenA, tokenB, inputAmount, tokenBObj, true)
+		let swapId = swapObj.id;
+		quoteResponse = swapObj.quote;
+		console.log(`<bought> Done ${swapId}`)
 
 		let priceDiff = parseInt( inputAmount ) * ( parseFloat ( process.env.PERCENT_TO_GAIN ) / 100 )
 		console.log(`Selling => ${outAmount} ${tokenBObj.symbol}`)
@@ -92,7 +90,7 @@ import bs58 from 'bs58';
 		while(true){
 			let _currenttimeNow = new Date().getTime();
 			if(_currenttimeNow > _timeOutOperation){
-				console.log(`>Operation timedOut exiting swap ${outTempAmount}  ${tokenAObj.symbol}`)
+				console.log(`>Operation timedOut exiting swap ${outAmount} ${tokenBObj.symbol}`)
 				swapId = await exitSwap(tokenB, tokenA, quoteResponse.outAmount, tokenAObj);
 				timeControl.state = true;
 				console.log(`Done ${swapId}`)
@@ -188,21 +186,23 @@ import bs58 from 'bs58';
 		return txid;
 
 	}
-	let exitSwap = async (tokenA, tokenB, inputAmount, tokenBObj) => {
-		let swapId;
+	let exitSwap = async (tokenA, tokenB, inputAmount, tokenBObj, returnQuote = false) => {
+		let swapId, quoteResponse;
 		while(true){
-			let quoteResponse = await doQuote(tokenA, tokenB, inputAmount, tokenBObj);
+			quoteResponse = await doQuote(tokenA, tokenB, inputAmount, tokenBObj);
 			if(quoteResponse.hasOwnProperty('error')){console.log(quoteResponse, tokenBObj.address, tokenBObj.symbol ); continue;}
 			if(false == quoteResponse) continue;
+			if(undefined == quoteResponse) continue;
 
 			swapId = await doSwap(quoteResponse);
 			if(false == swapId) continue;
+			if(undefined == swapId) continue;
 
 			break
 		}
+		if(returnQuote) return { quote:quoteResponse, id : swapId }
 		return swapId;
 	}
-
 	// When using the subscription, make sure to close the websocket upon termination to finish the process gracefully.
 	//setTimeout(() => {
 	//	connection.closeWebSocket();
