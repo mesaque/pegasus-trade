@@ -165,6 +165,8 @@ import bs58 from 'bs58';
 			})
 			})
 		).json();
+		if(undefined == swapTransaction) return false;
+		if(false == swapTransaction) return false;
 
 		if('on' == LOG_MODE) console.log(new Date().getTime() + ` {${tokenBObj.symbol}} with log: ${JSON.stringify(swapTransaction)}` );
 		// deserialize the transaction
